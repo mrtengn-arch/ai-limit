@@ -1,0 +1,39 @@
+<!-- /// ============================================================
+/// FILE   : extension/popup/popup.html
+/// PURPOSE: Popup skeleton — Claude session + weekly gauges, status line.
+/// STATUS : Phase 1 — first version
+/// INDEX  :
+///   [S1] head — meta + popup.css
+///   [S2] header — brand + plan badge
+///   [S3] #gauges — card template is generated in JS (popup.js S3)
+///   [S4] footer — last sync + refresh button + error line
+/// ============================================================ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- /// [S1] head -->
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- /// [S2] header -->
+  <header>
+    <span class="brand">⚡ AI LIMIT</span>
+    <span class="plan" id="plan">—</span>
+  </header>
+
+  <!-- /// [S3] gauge cards (filled by popup.js) -->
+  <main id="gauges"></main>
+
+  <!-- /// [S4] footer -->
+  <footer>
+    <span id="status">loading…</span>
+    <span>
+      <button id="dashboard" title="Open the Token Reactor dashboard">⚡</button>
+      <button id="refresh" title="Sync now">⟳</button>
+    </span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

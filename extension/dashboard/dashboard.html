@@ -1,0 +1,298 @@
+<!--
+/// ============================================================
+/// FILE   : extension/dashboard/dashboard.html
+/// PURPOSE: AI Limit full-page dashboard (K11, Phase 1.5) — token reactor +
+///          REAL limit cards. Derived from the dashboard/token-reactor.html
+///          prototype; live data from chrome.storage instead of demo data.
+/// STATUS : Phase 1.5 — first real-data version
+/// INDEX  :
+///   [S1] <style> :root tokens — semantic gauge colors + identity neutrals
+///   [S2] <style> theme — light (@media) + explicit [data-theme] override
+///   [S3] <style> top bar / brand / system-status badge
+///   [S4] <style> reactor stage — canvas, boom-flash, boom-word, shake
+///   [S5] <style> model cards — gauge, ticks, sparkline, meta
+///   [S6] <body> DOM skeleton — header · reactor · #grid · footer/legend
+///   [S7] <script src> — dashboard.js (MV3 CSP: inline script FORBIDDEN)
+/// COLOR : remaining% ≥80 blue · 60-80 green · 40-60 yellow · 20-40 orange · <20 red
+/// NOTE  : Styling is identical to the prototype; only texts updated for real mode.
+/// ============================================================
+-->
+<title>AI Limit — Token Reactor</title>
+<style>
+  /* /// [S1] :root tokens */
+  :root {
+    --g-blue:   #2DA8FF;
+    --g-green:  #3FB950;
+    --g-yellow: #E3B341;
+    --g-orange: #F0883E;
+    --g-red:    #F85149;
+
+    --bg:        #0B1017;
+    --bg-grid:   #0E1621;
+    --panel:     #121A24;
+    --panel-2:   #18222E;
+    --raised:    #1E2A38;
+    --border:    #233040;
+    --border-hi: #33465B;
+    --ink:       #E6EDF3;
+    --ink-mid:   #93A1B3;
+    --ink-dim:   #5E6E80;
+    --accent:    #8B7CF6;
+    --accent-dim:#6E60D6;
+
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+    --r: 12px;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 30px -12px rgba(0,0,0,.6);
+  }
+
+  /* /// [S2] theme */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:        #EDF1F7;
+      --bg-grid:   #E4EAF3;
+      --panel:     #FFFFFF;
+      --panel-2:   #F5F8FC;
+      --raised:    #FFFFFF;
+      --border:    #D6DFEB;
+      --border-hi: #BECBDB;
+      --ink:       #131C28;
+      --ink-mid:   #55647A;
+      --ink-dim:   #8595A8;
+      --accent:    #6E5BE0;
+      --accent-dim:#5949C0;
+      --g-blue:    #1E86E6;
+      --g-green:   #2C9A3E;
+      --g-yellow:  #C9962A;
+      --g-orange:  #D9722C;
+      --g-red:     #DE3B33;
+      --shadow: 0 1px 2px rgba(23,43,77,.06), 0 12px 30px -18px rgba(23,43,77,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0B1017; --bg-grid:#0E1621; --panel:#121A24; --panel-2:#18222E; --raised:#1E2A38;
+    --border:#233040; --border-hi:#33465B; --ink:#E6EDF3; --ink-mid:#93A1B3; --ink-dim:#5E6E80;
+    --accent:#8B7CF6; --accent-dim:#6E60D6;
+    --g-blue:#2DA8FF; --g-green:#3FB950; --g-yellow:#E3B341; --g-orange:#F0883E; --g-red:#F85149;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 30px -12px rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"] {
+    --bg:#EDF1F7; --bg-grid:#E4EAF3; --panel:#FFFFFF; --panel-2:#F5F8FC; --raised:#FFFFFF;
+    --border:#D6DFEB; --border-hi:#BECBDB; --ink:#131C28; --ink-mid:#55647A; --ink-dim:#8595A8;
+    --accent:#6E5BE0; --accent-dim:#5949C0;
+    --g-blue:#1E86E6; --g-green:#2C9A3E; --g-yellow:#C9962A; --g-orange:#D9722C; --g-red:#DE3B33;
+    --shadow: 0 1px 2px rgba(23,43,77,.06), 0 12px 30px -18px rgba(23,43,77,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 22px 20px 60px; }
+
+  /* /// [S3] top bar */
+  .top {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 18px; margin-bottom: 20px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--border); border-radius: var(--r);
+    box-shadow: var(--shadow);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--accent) 85%, white), var(--accent-dim));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 0 18px -4px var(--accent);
+  }
+  .logo span { font: 700 18px/1 var(--mono); color: #fff; }
+  .brand h1 { margin: 0; font: 700 15px/1.1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  .brand p { margin: 2px 0 0; font-size: 11.5px; color: var(--ink-mid); letter-spacing: .02em; }
+
+  .top-spacer { flex: 1 1 40px; }
+  .stat-chip {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 6px 14px; border-left: 1px solid var(--border);
+  }
+  .stat-chip .k { font: 500 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim); }
+  .stat-chip .v { font: 600 15px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+
+  .sys {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 13px; border-radius: 999px;
+    font: 600 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .sys .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; animation: pulse 2s ease-in-out infinite; }
+  .sys.ok  { color: var(--g-green);  background: color-mix(in srgb, var(--g-green) 12%, transparent);  border-color: color-mix(in srgb, var(--g-green) 35%, transparent); }
+  .sys.warn{ color: var(--g-orange); background: color-mix(in srgb, var(--g-orange) 12%, transparent); border-color: color-mix(in srgb, var(--g-orange) 35%, transparent); }
+  .sys.crit{ color: var(--g-red);    background: color-mix(in srgb, var(--g-red) 14%, transparent);    border-color: color-mix(in srgb, var(--g-red) 40%, transparent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* /// [S4] reactor */
+  .reactor {
+    display: grid; grid-template-columns: 1.35fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: var(--r); overflow: hidden;
+    background: var(--panel); box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .reactor-stage { position: relative; min-height: 260px; background:
+      radial-gradient(120% 90% at 50% 120%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+      var(--panel-2);
+    border-right: 1px solid var(--border);
+  }
+  #pool { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+  .stage-label {
+    position: absolute; top: 12px; left: 14px; z-index: 2;
+    font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim);
+  }
+  .boom-flash { position: absolute; inset: 0; background: var(--g-red); opacity: 0; pointer-events: none; z-index: 1; mix-blend-mode: screen; }
+  .boom-word {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 3; pointer-events: none;
+    font: 800 46px/1 var(--mono); letter-spacing: .06em; color: var(--g-red);
+    text-shadow: 0 0 24px var(--g-red); opacity: 0; transform: scale(.6);
+  }
+  .shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake {
+    10%,90%{transform:translate(-1px,0)} 20%,80%{transform:translate(3px,0)}
+    30%,50%,70%{transform:translate(-6px,0)} 40%,60%{transform:translate(6px,0)}
+  }
+
+  .reactor-read { padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .read-title { font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-dim); }
+  .burn-num { display: flex; align-items: baseline; gap: 8px; }
+  .burn-num b { font: 700 40px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .burn-num small { font: 500 12px/1 var(--mono); color: var(--ink-mid); }
+  .burn-meter { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--ink-dim) 22%, transparent); overflow: hidden; }
+  .burn-meter i { display: block; height: 100%; width: 20%; border-radius: 999px; background: linear-gradient(90deg, var(--g-green), var(--g-orange), var(--g-red)); transition: width .3s ease; }
+  .read-sub { font-size: 12px; color: var(--ink-mid); line-height: 1.5; }
+  .btn-row { display: flex; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
+  button {
+    font: 600 12px/1 var(--mono); letter-spacing: .04em; color: var(--ink);
+    background: var(--raised); border: 1px solid var(--border-hi); border-radius: 9px;
+    padding: 10px 14px; cursor: pointer; transition: transform .08s ease, border-color .15s, background .15s;
+  }
+  button:hover { border-color: var(--accent); }
+  button:active { transform: translateY(1px) scale(.98); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-danger { color: #fff; background: linear-gradient(180deg, var(--g-orange), var(--g-red)); border-color: transparent; }
+  .btn-ghost { background: transparent; }
+
+  /* /// [S5] cards */
+  .grid-head { display: flex; align-items: center; gap: 10px; margin: 4px 2px 14px; }
+  .grid-head h2 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-mid); }
+  .grid-head .rule { flex: 1; height: 1px; background: var(--border); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 16px 16px 14px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden;
+  }
+  .card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--bar-color, var(--g-blue)); opacity:.9; }
+  .card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .glyph { width: 30px; height: 30px; border-radius: 8px; flex: none; display: grid; place-items: center;
+    font: 700 13px/1 var(--mono); color: #fff; }
+  .card-id { flex: 1; min-width: 0; }
+  .card-id .name { font: 600 13.5px/1.2 var(--sans); }
+  .card-id .plan { font: 500 10.5px/1.3 var(--mono); letter-spacing: .06em; color: var(--ink-dim); text-transform: uppercase; margin-top: 3px; }
+  .pill { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px;
+    color: var(--bar-color); background: color-mix(in srgb, var(--bar-color) 14%, transparent); border: 1px solid color-mix(in srgb, var(--bar-color) 32%, transparent); white-space: nowrap; }
+
+  .readout { display: flex; align-items: baseline; gap: 7px; }
+  .readout .big { font: 700 30px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--bar-color); }
+  .readout .tot { font: 500 12px/1 var(--mono); color: var(--ink-mid); }
+  .readout .pct { margin-left: auto; font: 600 12px/1 var(--mono); color: var(--ink-mid); font-variant-numeric: tabular-nums; }
+
+  .gauge { position: relative; height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--ink-dim) 20%, transparent); overflow: hidden; }
+  .gauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--bar-color);
+    box-shadow: 0 0 12px -2px var(--bar-color); transition: width .35s cubic-bezier(.3,.7,.3,1), background .35s; }
+  .ticks { position: absolute; inset: 0; pointer-events: none; }
+  .ticks span { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--bg) 55%, transparent); }
+
+  .meta { display: flex; align-items: center; gap: 12px; }
+  .meta .m { display: flex; flex-direction: column; gap: 3px; }
+  .meta .m .k { font: 500 9.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); }
+  .meta .m .v { font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .spark { margin-left: auto; width: 92px; height: 30px; }
+
+  footer { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--ink-mid); font-size: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+  .legend .item { display: inline-flex; align-items: center; gap: 7px; font: 500 11px/1 var(--mono); letter-spacing: .03em; }
+  .legend .sw { width: 22px; height: 8px; border-radius: 999px; }
+  .note { line-height: 1.6; max-width: 70ch; }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 720px) {
+    .reactor { grid-template-columns: 1fr; }
+    .reactor-stage { border-right: none; border-bottom: 1px solid var(--border); min-height: 220px; }
+    .top-spacer { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sys .dot { animation: none; }
+    .shake { animation: none; }
+    * { transition-duration: .01ms !important; }
+  }
+</style>
+
+<!-- /// [S6] DOM skeleton -->
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><span>⚡</span></div>
+      <div>
+        <h1>AI Limit</h1>
+        <p id="brandTag">Token Reactor</p>
+      </div>
+    </div>
+    <div class="top-spacer"></div>
+    <div class="stat-chip">
+      <span class="k" id="acctK">—</span>
+      <span class="v" id="acct">—</span>
+    </div>
+    <div class="stat-chip">
+      <span class="k" id="clockK">—</span>
+      <span class="v" id="clock">--:--:--</span>
+    </div>
+    <div class="sys ok" id="sysState"><span class="dot"></span><span id="sysText">—</span></div>
+  </header>
+
+  <section class="reactor" id="reactorBox">
+    <div class="reactor-stage">
+      <span class="stage-label" id="stageLabel">—</span>
+      <canvas id="pool"></canvas>
+      <div class="boom-flash" id="flash"></div>
+      <div class="boom-word" id="boomWord">BOOM</div>
+    </div>
+    <div class="reactor-read">
+      <span class="read-title" id="readTitle">—</span>
+      <div class="burn-num"><b id="burnVal">0</b><small id="burnUnit">—</small></div>
+      <div class="burn-meter"><i id="burnBar"></i></div>
+      <p class="read-sub" id="burnSub"></p>
+      <div class="btn-row">
+        <button class="btn-danger" id="overdrive">—</button>
+        <button class="btn-ghost" id="demoToggle">—</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-head">
+    <h2 id="gridHead">—</h2><div class="rule"></div>
+  </div>
+  <section class="grid" id="grid"></section>
+
+  <footer>
+    <div class="legend" id="legend"></div>
+    <p class="note" id="footNote"></p>
+  </footer>
+</div>
+
+<!-- /// [S7] script (separate file — MV3 CSP) -->
+<script src="dashboard.js"></script>
